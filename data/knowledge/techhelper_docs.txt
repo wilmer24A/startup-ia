@@ -1,0 +1,78 @@
+INSTALACIÓN DE TECHHELPER
+
+Windows:
+1. Descarga el instalador desde techhelper.io/download/windows
+2. Ejecuta el archivo TechHelper-Setup.exe como administrador
+3. Sigue el asistente de instalación
+4. Reinicia el equipo al terminar
+
+Mac:
+1. Descarga el archivo .dmg desde techhelper.io/download/mac
+2. Abre el archivo y arrastra TechHelper a Aplicaciones
+3. En macOS Ventura o superior: ve a Ajustes > Privacidad y Seguridad > permite TechHelper
+4. Abre TechHelper desde la carpeta Aplicaciones
+
+Linux (Ubuntu/Debian):
+1. Ejecuta: curl -fsSL https://get.techhelper.io | bash
+2. Reinicia el terminal
+3. Ejecuta: techhelper --start
+
+PLANES Y PRECIOS
+
+Plan Free:
+- Hasta 3 usuarios
+- 5 proyectos activos
+- 1 GB de almacenamiento
+- Integraciones básicas (Slack, Google Drive)
+- Soporte por email (respuesta en 72h)
+
+Plan Pro ($29/mes):
+- Hasta 20 usuarios
+- Proyectos ilimitados
+- 50 GB de almacenamiento
+- Todas las integraciones (Slack, Google Drive, GitHub, Jira)
+- Soporte prioritario (respuesta en 24h)
+- Reportes avanzados y analytics
+
+Plan Enterprise (precio personalizado):
+- Usuarios ilimitados
+- Almacenamiento ilimitado
+- SSO y autenticación avanzada
+- SLA garantizado 99.9%
+- Soporte dedicado 24/7
+
+INTEGRACIONES
+
+Slack:
+- Recibe notificaciones de tareas en canales de Slack
+- Crea tareas desde mensajes de Slack con /techhelper create
+- Configura en: Ajustes > Integraciones > Slack > Conectar
+
+GitHub:
+- Vincula commits y pull requests a tareas de TechHelper
+- Los PRs mergeados cierran tareas automáticamente
+- Configura en: Ajustes > Integraciones > GitHub > Conectar
+
+Google Drive:
+- Adjunta archivos de Drive directamente a tareas
+- Sincroniza carpetas de proyectos
+- Configura en: Ajustes > Integraciones > Google Drive > Conectar
+
+Jira:
+- Sincroniza issues de Jira con tareas de TechHelper
+- Bidireccional: cambios en ambas plataformas se sincronizan
+- Configura en: Ajustes > Integraciones > Jira > Conectar
+
+SOLUCIÓN DE PROBLEMAS FRECUENTES
+
+Error: "No se puede abrir TechHelper" en Mac
+Causa: macOS bloqueó la aplicación por seguridad
+Solución: Ajustes > Privacidad y Seguridad > haz clic en "Abrir de todas formas"
+
+Error: "Puerto 3000 en uso"
+Causa: Otro proceso está usando el puerto 3000
+Solución: ejecuta techhelper --port 3001 para usar un puerto alternativo
+
+Error: "Fallo al sincronizar"
+Causa: Problema de conexión o token expirado
+Solución: cierra sesión y vuelve a iniciar sesión en TechHelper

@@ -4,6 +4,11 @@
     "sistema operativo: macOS Ventura",
     "plan contratado: Pro",
     "número de usuarios: 12",
-    "integración utilizada: Slack"
+    "integración utilizada: Slack",
+    "Sistema operativo: macOS Ventura",
+    "Plan contratado: Pro",
+    "Número de usuarios: Hasta 20",
+    "Integraciones que usa: Slack, Google Drive, GitHub, Jira",
+    "Problemas frecuentes: Error 'Puerto 3000 en uso'"
   ]
 }
