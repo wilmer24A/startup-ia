@@ -14,7 +14,9 @@ load_dotenv()
 CONTEXTOS_ESPECIALIZADOS = {
     "instalacion": "CLAUDE_instalacion.md",
     "facturacion": "CLAUDE_facturacion.md",
+    "integraciones": "CLAUDE_integraciones.md",
     "general": None,
+
 }
 
 
@@ -41,6 +43,7 @@ class ClasificadorContexto:
 - instalacion: problemas para instalar, abrir o configurar la aplicación
 - facturacion: preguntas sobre precios, pagos, planes o reembolsos
 - general: cualquier otra consulta
+- integraciones: preguntas sobre conectar TechHelper con Slack, GitHub, Jira, Google Drive
 
 Responde SOLO con una palabra: instalacion, facturacion o general"""
                 },
@@ -158,3 +161,11 @@ if __name__ == "__main__":
         print()
 
     agente.finalizar_sesion()
+
+
+CONTEXTOS_ESPECIALIZADOS = {
+    "instalacion": "CLAUDE_instalacion.md",
+    "facturacion": "CLAUDE_facturacion.md",
+    "integraciones": None,
+    "general": None,
+}

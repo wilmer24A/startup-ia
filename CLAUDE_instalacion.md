@@ -14,3 +14,17 @@ Cuando el usuario tiene un problema de instalación, sigue este orden:
 
 ## Escalación en instalación
 Si el usuario lleva más de 3 intentos fallidos → escala a soporte técnico especializado con el log de instalación
+
+## Errores comunes y soluciones rápidas
+
+Error "La aplicación no puede abrirse porque no se puede verificar el desarrollador" (Mac):
+→ Ajustes > Privacidad y Seguridad > haz clic en "Abrir de todas formas"
+
+Error "Windows protegió tu PC" (Windows):
+→ Haz clic en "Más información" → "Ejecutar de todas formas"
+
+Error "Puerto 3000 en uso":
+→ Ejecuta techhelper --port 3001
+
+Error "No se puede conectar al servidor":
+→ Verifica conexión a internet y que el firewall no esté bloqueando TechHelper
