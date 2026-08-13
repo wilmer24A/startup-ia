@@ -6,7 +6,7 @@ import json
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
-from src.agents.agente_personalizado import AgentePersonalizado
+from src.agents.agente_completo_s2 import AgenteCompletoS2
 from src.agents.memoria_usuario import MemoriaUsuario
 
 load_dotenv()
@@ -105,7 +105,7 @@ Responde SOLO con JSON:
 if __name__ == "__main__":
     print("=== Evaluador de Context Engineering ===\n")
 
-    agente = AgentePersonalizado(usuario_id="alexander_123")
+    agente = AgenteCompletoS2(usuario_id="alexander_123")
     evaluador = EvaluadorContexto()
     print()
 
