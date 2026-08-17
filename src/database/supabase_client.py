@@ -90,6 +90,11 @@ class MemoriaDB:
         ).order("timestamp").execute()
         return [r["hecho"] for r in respuesta.data] if respuesta.data else []
 
+    def eliminar_hecho(self, usuario_id: str, hecho: str) -> None:
+        self.client.table("memoria_usuario").delete().eq(
+            "usuario_id", usuario_id
+        ).eq("hecho", hecho).execute()
+
 
 if __name__ == "__main__":
     print("=== Demo Supabase Client ===")
