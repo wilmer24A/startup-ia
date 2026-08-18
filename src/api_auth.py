@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from src.auth.clerk_auth import ClerkAuth, UsuarioAutenticado
+from src.auth.usuario_sync import SincronizadorUsuarios
 from src.database.supabase_client import UsuariosDB, ConversacionesDB
 
 load_dotenv()
@@ -17,40 +18,51 @@ load_dotenv()
 # Seguridad HTTP Bearer
 security = HTTPBearer()
 clerk_auth = ClerkAuth()
+sincronizador = SincronizadorUsuarios()
 
 
 # =====================
 # DEPENDENCIA DE AUTENTICACIÓN
 # =====================
 
+class UsuarioCompleto(UsuarioAutenticado):
+    """Usuario con datos de Clerk y Supabase combinados."""
+    supabase_id: str = ""
+    plan: str = "free"
+
+
 async def verificar_usuario(
     credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> UsuarioAutenticado:
+) -> UsuarioCompleto:
     """
-    Dependencia de FastAPI que verifica el token JWT de Clerk.
-    Se inyecta en cada endpoint protegido.
-    Si el token es inválido devuelve 401.
+    Verifica el token, sincroniza con Supabase y devuelve usuario completo.
     """
     token = credentials.credentials
 
-    # Para desarrollo: acepta el clerk_user_id directamente como token
-    # En producción esto sería un JWT real de Clerk
+    # Para desarrollo: acepta clerk_user_id directamente
     if token.startswith("user_"):
-        usuario_clerk = clerk_auth.obtener_usuario(token)
-        if usuario_clerk:
-            return UsuarioAutenticado(
-                clerk_user_id=usuario_clerk["clerk_user_id"],
-                email=usuario_clerk["email"],
+        datos = sincronizador.obtener_o_sincronizar(token)
+        if datos:
+            return UsuarioCompleto(
+                clerk_user_id=datos["clerk_user_id"],
+                email=datos["email"],
+                supabase_id=datos.get("id", ""),
+                plan=datos.get("plan", "free"),
             )
 
-    # Verifica token JWT real
+    # Verifica JWT real
     usuario = clerk_auth.verificar_token(token)
     if not usuario:
-        raise HTTPException(
-            status_code=401,
-            detail="Token inválido o expirado"
-        )
-    return usuario
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
+    # Sincroniza con Supabase
+    datos = sincronizador.sincronizar(usuario)
+    return UsuarioCompleto(
+        clerk_user_id=datos["clerk_user_id"],
+        email=datos["email"],
+        supabase_id=datos.get("id", ""),
+        plan=datos.get("plan", "free"),
+    )
 
 
 # =====================
@@ -112,40 +124,36 @@ async def health():
 
 
 @app.get("/mi-perfil")
-async def mi_perfil(usuario: UsuarioAutenticado = Depends(verificar_usuario)):
+async def mi_perfil(usuario: UsuarioCompleto = Depends(verificar_usuario)):
     """
     Devuelve el perfil del usuario autenticado.
     Requiere token válido de Clerk.
     """
-    usuarios_db = UsuariosDB()
-    usuario_db = usuarios_db.buscar_por_email(usuario.email)
-
     return {
         "clerk_user_id": usuario.clerk_user_id,
         "email": usuario.email,
-        "plan": usuario_db.get("plan", "free") if usuario_db else "free",
-        "en_supabase": usuario_db is not None,
+        "plan": usuario.plan,
+        "supabase_id": usuario.supabase_id,
+        "en_supabase": bool(usuario.supabase_id),
     }
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
-    usuario: UsuarioAutenticado = Depends(verificar_usuario)
+    usuario: UsuarioCompleto = Depends(verificar_usuario)
 ):
     """
-    Endpoint de chat protegido.
-    El agente responde solo si el usuario está autenticado.
+    Endpoint de chat con multi-tenancy.
+    Cada usuario tiene su propio agente aislado.
     """
-    global agente_global
+    from src.agents.agente_con_db import AgenteConDB
 
-    if not agente_global:
-        raise HTTPException(status_code=503, detail="Agente no inicializado")
+    # Agente independiente por usuario — no compartido
+    agente_usuario = AgenteConDB()
+    agente_usuario.iniciar_sesion(usuario.email, usuario.plan)
 
-    # Inicia sesión con el usuario autenticado
-    agente_global.iniciar_sesion(usuario.email, "pro")
-
-    respuesta = agente_global.chat(request.mensaje)
+    respuesta = agente_usuario.chat(request.mensaje)
 
     return ChatResponse(
         respuesta=respuesta,
@@ -155,7 +163,7 @@ async def chat(
 
 @app.get("/mis-conversaciones")
 async def mis_conversaciones(
-    usuario: UsuarioAutenticado = Depends(verificar_usuario)
+    usuario: UsuarioCompleto = Depends(verificar_usuario)
 ):
     """
     Devuelve el historial de conversaciones del usuario autenticado.
