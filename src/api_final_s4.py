@@ -20,6 +20,7 @@ from src.agents.agente_multinivel import ClasificadorContexto, CONTEXTOS_ESPECIA
 from src.agents.prompt_dinamico import PromptDinamico
 from src.database.consultas import ReporteNegocio
 from fastapi.responses import StreamingResponse
+from src.tasks.celery_app import tarea_analizar_conversacion, tarea_deduplicar_memoria
 import json
 
 load_dotenv()
@@ -199,6 +200,12 @@ async def chat(
     conversacion = conv_db.crear_conversacion(usuario.supabase_id)
     conv_db.guardar_mensaje(conversacion["id"], "user", request.mensaje)
     conv_db.guardar_mensaje(conversacion["id"], "assistant", contenido)
+
+    # Dispara análisis en segundo plano con Celery
+    try:
+        tarea_analizar_conversacion.delay(usuario.supabase_id, conversacion["id"])
+    except Exception as e:
+        print(f"Warning: No se pudo enviar tarea a Celery: {e}")
 
     return ChatResponse(
         respuesta=contenido,
