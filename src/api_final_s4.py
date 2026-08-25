@@ -21,6 +21,7 @@ from src.agents.prompt_dinamico import PromptDinamico
 from src.database.consultas import ReporteNegocio
 from fastapi.responses import StreamingResponse
 from src.tasks.celery_app import tarea_analizar_conversacion, tarea_deduplicar_memoria
+from src.middleware.rate_limiter import rate_limiter
 import json
 
 load_dotenv()
@@ -157,8 +158,15 @@ async def chat(
     usuario: UsuarioCompleto = Depends(verificar_usuario)
 ):
     """
-    Chat con RAG compartido y memoria aislada por usuario.
+    Chat con RAG compartido, memoria aislada y rate limiting.
     """
+    # Verifica rate limit del usuario
+    limite = rate_limiter.verificar_limite(usuario.supabase_id, usuario.plan)
+    if not limite["permitido"]:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Límite de peticiones excedido. Plan {usuario.plan}: {limite['limite']} peticiones/minuto. Intenta en 60 segundos."
+        )
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     # Memoria aislada del usuario autenticado
@@ -290,6 +298,17 @@ async def chat_stream(
             "X-Accel-Buffering": "no",
         }
     )
+
+
+@app.get("/mi-limite")
+async def mi_limite(usuario: UsuarioCompleto = Depends(verificar_usuario)):
+    """Devuelve el estado actual del rate limit del usuario."""
+    estado = rate_limiter.estado_usuario(usuario.supabase_id, usuario.plan)
+    return {
+        "email": usuario.email,
+        "plan": usuario.plan,
+        **estado
+    }
 
 
 @app.get("/estadisticas")
