@@ -15,7 +15,10 @@ REDIS_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")
 # Para Celery necesitamos la URL en formato redis://
 # Upstash también provee una URL redis:// compatible
 _redis_url = os.getenv("UPSTASH_REDIS_URL", f"rediss://:{REDIS_TOKEN}@{REDIS_URL.replace('https://', '')}")
-CELERY_BROKER_URL = _redis_url + "?ssl_cert_reqs=CERT_NONE" if "rediss://" in _redis_url else _redis_url
+if "rediss://" in _redis_url and "ssl_cert_reqs" not in _redis_url:
+    CELERY_BROKER_URL = _redis_url + "?ssl_cert_reqs=CERT_NONE"
+else:
+    CELERY_BROKER_URL = _redis_url
 
 celery_app = Celery(
     "techhelper",
