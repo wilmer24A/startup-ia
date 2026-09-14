@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from src.auth.clerk_auth import ClerkAuth, UsuarioAutenticado
 from src.auth.usuario_sync import SincronizadorUsuarios
 from src.database.supabase_client import ConversacionesDB, MemoriaDB
-from src.agents.rag_avanzado import RAGAvanzado
+from src.database.pinecone_client import PineconeRAG
 from src.agents.agente_multinivel import ClasificadorContexto, CONTEXTOS_ESPECIALIZADOS
 from src.agents.prompt_dinamico import PromptDinamico
 from src.database.consultas import ReporteNegocio
@@ -83,7 +83,8 @@ async def lifespan(app: FastAPI):
     global rag_compartido, clasificador_compartido, prompt_dinamico_compartido, claude_md_base
 
     print("Cargando recursos compartidos...")
-    rag_compartido = RAGAvanzado("data/knowledge")
+    rag_compartido = PineconeRAG("data/knowledge")
+    rag_compartido.indexar_documentos()
     clasificador_compartido = ClasificadorContexto()
     prompt_dinamico_compartido = PromptDinamico()
     claude_md_base = Path("CLAUDE.md").read_text(encoding="utf-8")
