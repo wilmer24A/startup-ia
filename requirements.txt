@@ -2,3 +2,5 @@
 pinecone
 
 pinecone
+
+prometheus-fastapi-instrumentator

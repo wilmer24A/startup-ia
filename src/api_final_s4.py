@@ -22,6 +22,7 @@ from src.database.consultas import ReporteNegocio
 from fastapi.responses import StreamingResponse
 from src.tasks.celery_app import tarea_analizar_conversacion, tarea_deduplicar_memoria
 from src.middleware.rate_limiter import rate_limiter
+from prometheus_fastapi_instrumentator import Instrumentator
 import json
 
 load_dotenv()
@@ -110,6 +111,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 
 # =====================
