@@ -35,7 +35,7 @@ clerk_auth = ClerkAuth()
 sincronizador = SincronizadorUsuarios()
 
 # Estos se inicializan en el lifespan — compartidos entre todos los usuarios
-rag_compartido: RAGAvanzado = None
+rag_compartido: PineconeRAG = None
 clasificador_compartido: ClasificadorContexto = None
 prompt_dinamico_compartido: PromptDinamico = None
 claude_md_base: str = ""
