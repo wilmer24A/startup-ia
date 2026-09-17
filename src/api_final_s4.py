@@ -23,6 +23,7 @@ from fastapi.responses import StreamingResponse
 from src.tasks.celery_app import tarea_analizar_conversacion, tarea_deduplicar_memoria
 from src.middleware.rate_limiter import rate_limiter
 from prometheus_fastapi_instrumentator import Instrumentator
+from langsmith import traceable
 import json
 
 load_dotenv()
@@ -155,6 +156,21 @@ async def mi_perfil(usuario: UsuarioCompleto = Depends(verificar_usuario)):
         "supabase_id": usuario.supabase_id,
         "hechos_en_memoria": len(hechos),
     }
+
+
+@traceable(name="chat-endpoint", project_name="startup-ia")
+def procesar_chat_langsmith(mensaje: str, usuario_email: str, hechos: list, categoria: str, contexto: str) -> str:
+    """Función traceable para LangSmith."""
+    client_openai = __import__('openai').OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    respuesta = client_openai.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0.3,
+        messages=[
+            {"role": "system", "content": contexto},
+            {"role": "user", "content": mensaje}
+        ]
+    )
+    return respuesta.choices[0].message.content
 
 
 @app.post("/chat", response_model=ChatResponse)
