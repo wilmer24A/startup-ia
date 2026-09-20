@@ -213,16 +213,14 @@ async def chat(
     )
     contexto += instrucciones
 
-    # Genera respuesta
-    respuesta = client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.3,
-        messages=[
-            {"role": "system", "content": contexto},
-            {"role": "user", "content": request.mensaje}
-        ]
+    # Genera respuesta con tracing de LangSmith
+    contenido = procesar_chat_langsmith(
+        mensaje=request.mensaje,
+        usuario_email=usuario.email,
+        hechos=hechos_usuario,
+        categoria=categoria,
+        contexto=contexto
     )
-    contenido = respuesta.choices[0].message.content
 
     # Guarda en PostgreSQL
     conv_db = ConversacionesDB()
