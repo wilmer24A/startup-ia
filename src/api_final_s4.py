@@ -24,6 +24,8 @@ from src.tasks.celery_app import tarea_analizar_conversacion, tarea_deduplicar_m
 from src.middleware.rate_limiter import rate_limiter
 from prometheus_fastapi_instrumentator import Instrumentator
 from langsmith import traceable
+from src.middleware.cache_respuestas import cache_respuestas
+from src.agents.optimizador_contexto import OptimizadorContexto
 import json
 
 load_dotenv()
@@ -40,6 +42,7 @@ sincronizador = SincronizadorUsuarios()
 rag_compartido: PineconeRAG = None
 clasificador_compartido: ClasificadorContexto = None
 prompt_dinamico_compartido: PromptDinamico = None
+optimizador_compartido: OptimizadorContexto = None
 claude_md_base: str = ""
 
 
@@ -82,7 +85,7 @@ async def verificar_usuario(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global rag_compartido, clasificador_compartido, prompt_dinamico_compartido, claude_md_base
+    global rag_compartido, clasificador_compartido, prompt_dinamico_compartido, optimizador_compartido, claude_md_base
 
     print("Cargando recursos compartidos...")
     rag_compartido = PineconeRAG("data/knowledge")
@@ -90,6 +93,7 @@ async def lifespan(app: FastAPI):
     clasificador_compartido = ClasificadorContexto()
     prompt_dinamico_compartido = PromptDinamico()
     claude_md_base = Path("CLAUDE.md").read_text(encoding="utf-8")
+    optimizador_compartido = OptimizadorContexto(claude_md_base)
     print("Recursos compartidos listos — API production-ready\n")
     yield
     print("API detenida")
@@ -158,7 +162,6 @@ async def mi_perfil(usuario: UsuarioCompleto = Depends(verificar_usuario)):
     }
 
 
-@traceable(name="chat-endpoint", project_name="startup-ia")
 def procesar_chat_langsmith(mensaje: str, usuario_email: str, hechos: list, categoria: str, contexto: str) -> str:
     """Función traceable para LangSmith."""
     client_openai = __import__('openai').OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -190,30 +193,35 @@ async def chat(
         )
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    # Memoria aislada del usuario autenticado
+    # PASO 1: Verifica caché
+    respuesta_cache = cache_respuestas.obtener(request.mensaje)
+    if respuesta_cache:
+        return ChatResponse(
+            respuesta=respuesta_cache,
+            categoria="cache",
+            usuario_email=usuario.email,
+        )
+
+    # PASO 2: Memoria aislada del usuario autenticado
     memoria_db = MemoriaDB()
     hechos_usuario = memoria_db.cargar_hechos(usuario.supabase_id)
 
     # Clasifica la pregunta
     categoria = clasificador_compartido.clasificar(request.mensaje)
 
-    # Construye contexto con RAG compartido
-    contexto = claude_md_base
-
-    archivo_esp = CONTEXTOS_ESPECIALIZADOS.get(categoria)
-    if archivo_esp and Path(archivo_esp).exists():
-        contexto += f"\n\n{Path(archivo_esp).read_text(encoding='utf-8')}"
-
+    # PASO 3: Construye contexto optimizado
     docs = rag_compartido.buscar(request.mensaje, top_k=2)
-    if docs:
-        contexto += f"\n\n## Documentación relevante\n" + "\n\n".join(docs)
+    archivo_esp = CONTEXTOS_ESPECIALIZADOS.get(categoria)
+    contexto_esp = ""
+    if archivo_esp and Path(archivo_esp).exists():
+        contexto_esp = Path(archivo_esp).read_text(encoding='utf-8')
 
-    instrucciones = prompt_dinamico_compartido.construir(
-        request.mensaje, hechos_usuario, categoria
+    contexto, complejidad, tokens_est = optimizador_compartido.construir_contexto_optimizado(
+        request.mensaje, docs, hechos_usuario, contexto_esp
     )
-    contexto += instrucciones
+    print(f"[Optimizador] Complejidad: {complejidad} | Tokens estimados: {tokens_est}")
 
-    # Genera respuesta con tracing de LangSmith
+    # PASO 4: Genera respuesta con tracing de LangSmith
     contenido = procesar_chat_langsmith(
         mensaje=request.mensaje,
         usuario_email=usuario.email,
@@ -221,6 +229,9 @@ async def chat(
         categoria=categoria,
         contexto=contexto
     )
+
+    # PASO 5: Guarda en caché
+    cache_respuestas.guardar(request.mensaje, contenido, categoria)
 
     # Guarda en PostgreSQL
     conv_db = ConversacionesDB()

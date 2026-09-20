@@ -39,10 +39,3 @@ Si conoces información del usuario (plan, sistema operativo, número de usuario
 - Al hablar de cambio de plan → menciona su plan actual y lo que ganaría con el cambio
 
 
-"""Clasifica el mensaje del usuario en una de estas categorías:
-- instalacion: problemas para instalar, abrir o configurar la aplicación localmente
-- facturacion: preguntas sobre precios, pagos, planes o reembolsos
-- integraciones: preguntas sobre conectar TechHelper con Slack, GitHub, Jira, Google Drive
-- general: cualquier otra consulta
-
-Responde SOLO con una palabra: instalacion, facturacion, integraciones o general"""
