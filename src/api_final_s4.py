@@ -26,6 +26,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from langsmith import traceable
 from src.middleware.cache_respuestas import cache_respuestas
 from src.agents.optimizador_contexto import OptimizadorContexto
+from src.security.detector_injection import detector_injection
 import json
 
 load_dotenv()
@@ -193,8 +194,18 @@ async def chat(
         )
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+    # PASO 0: Seguridad — detecta y sanitiza
+    resultado_seguridad = detector_injection.detectar(request.mensaje)
+    if resultado_seguridad.es_ataque:
+        print(f"[Security] Ataque detectado de {usuario.email}: {resultado_seguridad.patron_detectado}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mensaje rechazado por seguridad: {resultado_seguridad.razon}"
+        )
+    mensaje_sanitizado = detector_injection.sanitizar(request.mensaje)
+
     # PASO 1: Verifica caché
-    respuesta_cache = cache_respuestas.obtener(request.mensaje)
+    respuesta_cache = cache_respuestas.obtener(mensaje_sanitizado)
     if respuesta_cache:
         return ChatResponse(
             respuesta=respuesta_cache,
@@ -207,10 +218,10 @@ async def chat(
     hechos_usuario = memoria_db.cargar_hechos(usuario.supabase_id)
 
     # Clasifica la pregunta
-    categoria = clasificador_compartido.clasificar(request.mensaje)
+    categoria = clasificador_compartido.clasificar(mensaje_sanitizado)
 
     # PASO 3: Construye contexto optimizado
-    docs = rag_compartido.buscar(request.mensaje, top_k=2)
+    docs = rag_compartido.buscar(mensaje_sanitizado, top_k=2)
     archivo_esp = CONTEXTOS_ESPECIALIZADOS.get(categoria)
     contexto_esp = ""
     if archivo_esp and Path(archivo_esp).exists():
@@ -223,7 +234,7 @@ async def chat(
 
     # PASO 4: Genera respuesta con tracing de LangSmith
     contenido = procesar_chat_langsmith(
-        mensaje=request.mensaje,
+        mensaje=mensaje_sanitizado,
         usuario_email=usuario.email,
         hechos=hechos_usuario,
         categoria=categoria,
@@ -231,7 +242,7 @@ async def chat(
     )
 
     # PASO 5: Guarda en caché
-    cache_respuestas.guardar(request.mensaje, contenido, categoria)
+    cache_respuestas.guardar(mensaje_sanitizado, contenido, categoria)
 
     # Guarda en PostgreSQL
     conv_db = ConversacionesDB()
