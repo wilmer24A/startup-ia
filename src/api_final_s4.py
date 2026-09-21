@@ -27,6 +27,7 @@ from langsmith import traceable
 from src.middleware.cache_respuestas import cache_respuestas
 from src.agents.optimizador_contexto import OptimizadorContexto
 from src.security.detector_injection import detector_injection
+from src.security.middleware_seguridad import middleware_seguridad
 import json
 
 load_dotenv()
@@ -194,15 +195,12 @@ async def chat(
         )
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    # PASO 0: Seguridad — detecta y sanitiza
-    resultado_seguridad = detector_injection.detectar(request.mensaje)
-    if resultado_seguridad.es_ataque:
-        print(f"[Security] Ataque detectado de {usuario.email}: {resultado_seguridad.patron_detectado}")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Mensaje rechazado por seguridad: {resultado_seguridad.razon}"
-        )
-    mensaje_sanitizado = detector_injection.sanitizar(request.mensaje)
+    # PASO 0: Middleware de seguridad unificado
+    mensaje_sanitizado = middleware_seguridad.verificar_mensaje(
+        mensaje=request.mensaje,
+        usuario_id=usuario.supabase_id,
+        plan=usuario.plan
+    )
 
     # PASO 1: Verifica caché
     respuesta_cache = cache_respuestas.obtener(mensaje_sanitizado)
