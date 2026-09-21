@@ -31,6 +31,7 @@ from src.security.middleware_seguridad import middleware_seguridad
 from src.billing.stripe_client import stripe_client
 from src.billing.planes import PLANES
 from src.billing.metricas import MetricasBilling
+from src.billing.planes import obtener_top_k_rag, verificar_feature, obtener_modelo_llm
 import stripe as stripe_lib
 import json
 
@@ -222,8 +223,9 @@ async def chat(
     # Clasifica la pregunta
     categoria = clasificador_compartido.clasificar(mensaje_sanitizado)
 
-    # PASO 3: Construye contexto optimizado
-    docs = rag_compartido.buscar(mensaje_sanitizado, top_k=2)
+    # PASO 3: Construye contexto optimizado según plan
+    top_k = obtener_top_k_rag(usuario.plan)
+    docs = rag_compartido.buscar(mensaje_sanitizado, top_k=top_k)
     archivo_esp = CONTEXTOS_ESPECIALIZADOS.get(categoria)
     contexto_esp = ""
     if archivo_esp and Path(archivo_esp).exists():
@@ -234,7 +236,8 @@ async def chat(
     )
     print(f"[Optimizador] Complejidad: {complejidad} | Tokens estimados: {tokens_est}")
 
-    # PASO 4: Genera respuesta con tracing de LangSmith
+    # PASO 4: Genera respuesta con modelo según plan
+    modelo = obtener_modelo_llm(usuario.plan)
     contenido = procesar_chat_langsmith(
         mensaje=mensaje_sanitizado,
         usuario_email=usuario.email,
