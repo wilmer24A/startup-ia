@@ -30,6 +30,7 @@ from src.security.detector_injection import detector_injection
 from src.security.middleware_seguridad import middleware_seguridad
 from src.billing.stripe_client import stripe_client
 from src.billing.planes import PLANES
+from src.billing.metricas import MetricasBilling
 import stripe as stripe_lib
 import json
 
@@ -468,6 +469,15 @@ async def billing_planes(usuario: UsuarioCompleto = Depends(verificar_usuario)):
         "plan_actual": usuario.plan,
         "planes_disponibles": planes
     }
+
+
+@app.get("/billing/metricas")
+async def billing_metricas(usuario: UsuarioCompleto = Depends(verificar_usuario)):
+    """Dashboard de métricas de billing — solo Pro y Enterprise."""
+    if usuario.plan not in ["pro", "enterprise"]:
+        raise HTTPException(status_code=403, detail="Solo usuarios Pro o Enterprise")
+    metricas = MetricasBilling()
+    return metricas.generar_dashboard()
 
 
 @app.get("/estadisticas")
