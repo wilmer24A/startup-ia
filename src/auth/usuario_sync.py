@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 from src.auth.clerk_auth import ClerkAuth, UsuarioAutenticado
 from src.database.supabase_client import UsuariosDB, get_client
+from src.email.cliente_email import cliente_email
 
 load_dotenv()
 
@@ -70,10 +71,19 @@ class SincronizadorUsuarios:
                 "plan": "free",
                 "clerk_user_id": usuario_clerk.clerk_user_id,
             }).execute()
-            return respuesta.data[0] if respuesta.data else {}
+            usuario = respuesta.data[0] if respuesta.data else {}
+
+            # Envía email de bienvenida al nuevo usuario
+            if usuario and usuario_clerk.email:
+                try:
+                    cliente_email.enviar_bienvenida(usuario_clerk.email)
+                    print(f"[Email] Bienvenida enviada a {usuario_clerk.email}")
+                except Exception as e:
+                    print(f"[Email] Error enviando bienvenida: {e}")
+
+            return usuario
         except Exception as e:
             print(f"Error creando usuario: {e}")
-            # Si falla por email duplicado, busca por email
             return self.usuarios_db.buscar_por_email(usuario_clerk.email) or {}
 
     def obtener_o_sincronizar(self, clerk_user_id: str) -> dict | None:
