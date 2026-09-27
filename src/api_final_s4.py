@@ -33,6 +33,7 @@ from src.billing.planes import PLANES
 from src.billing.metricas import MetricasBilling
 from src.billing.planes import obtener_top_k_rag, verificar_feature, obtener_modelo_llm
 from src.analytics.tracker import tracker
+from src.email.cliente_email import cliente_email
 import stripe as stripe_lib
 import json
 
@@ -202,11 +203,25 @@ async def chat(
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     # PASO 0: Middleware de seguridad unificado
-    mensaje_sanitizado = middleware_seguridad.verificar_mensaje(
-        mensaje=request.mensaje,
-        usuario_id=usuario.supabase_id,
-        plan=usuario.plan
-    )
+    try:
+        mensaje_sanitizado = middleware_seguridad.verificar_mensaje(
+            mensaje=request.mensaje,
+            usuario_id=usuario.supabase_id,
+            plan=usuario.plan
+        )
+    except HTTPException as e:
+        if e.status_code == 429:
+            # Registra evento y envía email de upsell
+            tracker.registrar("rate_limit_excedido", usuario.supabase_id, {
+                "plan": usuario.plan
+            })
+            # Solo envía email si es plan Free para evitar spam
+            if usuario.plan == "free":
+                try:
+                    cliente_email.enviar_upsell(usuario.email, usuario.plan)
+                except Exception:
+                    pass
+        raise e
 
     # PASO 1: Verifica caché
     respuesta_cache = cache_respuestas.obtener(mensaje_sanitizado)
